@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Messenger
 {
@@ -24,6 +21,28 @@ namespace Messenger
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+
+            services.AddSingleton<IObservable<EventSubscription>>(s => GetTestSubscriptions());
+            services.AddSingleton(typeof(IObserver<ServiceEvent>), typeof(Demuxer));
+        }
+
+        private static IObservable<EventSubscription> GetTestSubscriptions()
+        {
+            return Observable.Create<EventSubscription>(o =>
+            {
+                o.OnNext(new EventSubscription()
+                {
+                    Endpoint = "http://localhost:8080/api/sink",
+                    EventType = "createsomething/v1.0"
+                });
+                o.OnNext(new EventSubscription()
+                {
+                    Endpoint = "http://localhost:8080/api/sink",
+                    EventType = "publishedsomething/v1.0"
+                });
+                o.OnCompleted();
+                return Disposable.Create(() => { Console.WriteLine("Completed"); });
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
